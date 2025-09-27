@@ -8,44 +8,45 @@ public class diceThrowScript : MonoBehaviour
     [SerializeField] float throwForce;
     [SerializeField] int maximumNumber;
     [SerializeField] int minimumNumber;
+    private DiceThrowData dice;
     public int currentNumber;
-    public bool isThrown;
-    public bool hasLanded;
-    public bool isHeld;
+
+    private Vector2 MouseOffset;
 
     private Vector2 moveDirection;
     private Vector2 oldMousePosition;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        rb = gameObject.GetComponent<Rigidbody2D>();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
 
     public void grabDice(InputAction.CallbackContext context)
     {
-        if (context.performed && !isThrown)
+        if (context.performed)
         {
-            Debug.Log("Grabbed");
-            isHeld = true;
+            Vector2 mousePosition = mainCamera.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+            RaycastHit2D hit = Physics2D.Raycast(mousePosition, Vector2.zero);
+
+            if (hit.collider != null && hit.collider.CompareTag("Dice"))
+            {
+                if (!hit.collider.gameObject.GetComponent<DiceThrowData>().isThrown)
+                {
+                    dice = hit.collider.gameObject.GetComponent<DiceThrowData>();
+                    rb = dice.GetComponent<Rigidbody2D>();
+                    MouseOffset = (Vector2)dice.transform.position - mousePosition;
+                    dice.isHeld = true;
+                    Debug.Log("Grabbed");
+                }
+            }
         }
-        if (context.canceled && isHeld)
+        if (context.canceled && dice != null && dice.isHeld)
         {
-            isHeld = false;
-            isThrown = true;
-            rb.simulated = true;
+            dice.isHeld = false;
+            dice.isThrown = true;
+            rb.constraints = RigidbodyConstraints2D.None;
             rb.AddForce(moveDirection * throwForce);
         }
     }
 
     public void moveMouse(InputAction.CallbackContext context)
     {
-        if (isHeld)
+        if (dice != null && dice.isHeld)
         {
             Vector2 mousePosition = context.ReadValue<Vector2>();
             if (oldMousePosition != null)
@@ -54,7 +55,7 @@ public class diceThrowScript : MonoBehaviour
             }
             oldMousePosition = mousePosition;
             Vector3 newPosition = mainCamera.ScreenToWorldPoint(new Vector3(mousePosition.x, mousePosition.y, 10));
-            transform.position = newPosition;
+            dice.transform.position = newPosition + (Vector3)MouseOffset;
        }
     }
 }
